@@ -12,7 +12,7 @@ on:
 jobs:
   build:
     # 使用 20.04 宿主机，完美兼容旧版 mipsel 工具链依赖
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     if: github.event.repository.owner.id == github.event.sender.id
 
     steps:
