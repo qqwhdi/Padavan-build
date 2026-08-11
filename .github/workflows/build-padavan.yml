@@ -22,18 +22,14 @@ jobs:
       env:
         DEBIAN_FRONTEND: noninteractive
       run: |
-        # 1. 升级系统内置包
-        sudo apt-get update -qq
+        # 1. 采用官方安全存档源来提供 libssl1.1，不再需要 wget 下载长链接
+        echo "deb http://ubuntu.com focal-security main" | sudo tee /etc/apt/sources.list.d/focal-security.list
+        sudo apt-get update
         
-        # 2. 从官方包存档安全下载旧版工具链必须的 libssl1.1 并安装
-        sudo wget -q http://kernel.org
-        sudo dpkg -i libssl1.1_1.1.1f-1ubuntu2.24_amd64.deb
-        rm -f libssl1.1_1.1.1f-1ubuntu2.24_amd64.deb
-        
-        # 3. 安装基础编译环境（已将 python-docutils 替换为 python3-docutils）
-        sudo apt-get install -y -qq unzip libtool-bin curl cmake gperf gawk flex bison nano fakeroot \
+        # 2. 一键自动下载并安装所有编译环境依赖
+        sudo apt-get install -y unzip libtool-bin curl cmake gperf gawk flex bison nano fakeroot \
         cpio git python3-docutils gettext automake autopoint texinfo build-essential help2man \
-        pkg-config zlib1g-dev libgmp3-dev libmpc-dev libmpfr-dev libncurses5-dev libltdl-dev wget
+        pkg-config zlib1g-dev libgmp3-dev libmpc-dev libmpfr-dev libncurses5-dev libltdl-dev wget libssl1.1
 
     - name: Clone source code
       env:
