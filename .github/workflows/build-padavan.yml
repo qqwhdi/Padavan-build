@@ -1,18 +1,18 @@
-# 修改TNAME: K2P 为您需要编译的型号，注意名称要与configs/templates/目录下的名字相同
 name: Build Padavan
 
-on: 
-  # 强制开启现代 GitHub 的手动点击触发按钮
-  workflow_dispatch:
+on:
   release:
     types: [published]
   push:
     tags:
     - 'v*'
+  watch:
+    types: [started]
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    # 使用 20.04 宿主机，完美兼容旧版 mipsel 工具链依赖
+    runs-on: ubuntu-20.04
     if: github.event.repository.owner.id == github.event.sender.id
 
     steps:
@@ -23,21 +23,21 @@ jobs:
       env:
         DEBIAN_FRONTEND: noninteractive
       run: |
-        sudo apt-get update
-        sudo apt-get -y install python3-docutils python-is-python3
-        sudo apt-get -y install unzip libtool-bin curl cmake gperf gawk flex bison nano xxd fakeroot \
-        cpio git gettext automake autopoint texinfo build-essential help2man \
+        sudo apt-get update -qq
+        # 移除了 20.04 自带或不再需要的 xxd，确保依赖无缝安装
+        sudo apt-get install -y -qq unzip libtool-bin curl cmake gperf gawk flex bison nano fakeroot \
+        cpio git python-docutils gettext automake autopoint texinfo build-essential help2man \
         pkg-config zlib1g-dev libgmp3-dev libmpc-dev libmpfr-dev libncurses5-dev libltdl-dev wget
 
     - name: Clone source code
+      env:
+        KERNEL: 3.4
       run: |
-        sudo rm -rf /opt/rt-n56u
-        sudo mkdir -p /opt/rt-n56u
-        sudo chown -R $USER:$USER /opt/rt-n56u
-        
-        # 纯净克隆，绝不读取外部环境变量
-        git clone --depth=1 https://github.com /opt/rt-n56u
-        
+        if [ "$KERNEL" = "4.4" ] ; then
+          git clone --depth=1 https://github.com /opt/rt-n56u
+        else
+          git clone --depth=1 https://github.com /opt/rt-n56u
+        fi
         cd /opt/rt-n56u/toolchain-mipsel
         sh dl_toolchain.sh
         mkdir -p /opt/images/
@@ -45,34 +45,81 @@ jobs:
     - name: Build Firmware
       env:
         TNAME: RM2100
+        KERNEL: 3.4
       run: |
         cd /opt/rt-n56u/trunk
         if [ ! -f configs/templates/$TNAME.config ] ; then
-        echo "configs/templates/$TNAME.config not found "
-        exit 1
+          echo "configs/templates/$TNAME.config not found"
+          exit 1
         fi
         cp -f configs/templates/$TNAME.config .config
-        sed -i 's/CONFIG_FIRMWARE_INCLUDE_OPENSSL_EXE=n/CONFIG_FIRMWARE_INCLUDE_OPENSSL_EXE=y/g' .config
         
-        ################################################################################################
-        # 配置功能：不精简，启用原本的所有核心功能逻辑
-        ################################################################################################
-        sed -i 's/CONFIG_FIRMWARE_INCLUDE_MENTOHUST=n/CONFIG_FIRMWARE_INCLUDE_MENTOHUST=y/g' .config
-        sed -i 's/CONFIG_FIRMWARE_INCLUDE_SCUTCLIENT=n/CONFIG_FIRMWARE_INCLUDE_SCUTCLIENT=y/g' .config
-        sed -i 's/CONFIG_FIRMWARE_INCLUDE_SHADOWSOCKS=n/CONFIG_FIRMWARE_INCLUDE_SHADOWSOCKS=y/g' .config
-        sed -i 's/CONFIG_FIRMWARE_INCLUDE_SMARTDNS=n/CONFIG_FIRMWARE_INCLUDE_SMARTDNS=y/g' .config
-        sed -i 's/CONFIG_FIRMWARE_INCLUDE_ADGUARDHOME=n/CONFIG_FIRMWARE_INCLUDE_ADGUARDHOME=y/g' .config
-        sed -i 's/CONFIG_FIRMWARE_INCLUDE_WYY=n/CONFIG_FIRMWARE_INCLUDE_WYY=y/g' .config
-        sed -i 's/CONFIG_FIRMWARE_INCLUDE_V2RAY=n/CONFIG_FIRMWARE_INCLUDE_V2RAY=y/g' .config
-        
+        # 清除旧配置项
+        sed -i '/CONFIG_FIRMWARE_INCLUDE_MENTOHUST/d' .config
+        sed -i '/CONFIG_FIRMWARE_INCLUDE_SCUTCLIENT/d' .config
+        sed -i '/CONFIG_FIRMWARE_INCLUDE_SHADOWSOCKS/d' .config
+        sed -i '/CONFIG_FIRMWARE_INCLUDE_SSSERVER/d' .config
+        sed -i '/CONFIG_FIRMWARE_INCLUDE_DNSFORWARDER/d' .config
+        sed -i '/CONFIG_FIRMWARE_INCLUDE_ADBYBY/d' .config
+        sed -i '/CONFIG_FIRMWARE_INCLUDE_FRPC/d' .config
+        sed -i '/CONFIG_FIRMWARE_INCLUDE_FRPS/d' .config
+        sed -i '/CONFIG_FIRMWARE_INCLUDE_TUNSAFE/d' .config
+        sed -i '/CONFIG_FIRMWARE_INCLUDE_ALIDDNS/d' .config
+        sed -i '/CONFIG_FIRMWARE_INCLUDE_SMARTDNS/d' .config
+        sed -i '/CONFIG_FIRMWARE_INCLUDE_SRELAY/d' .config
+        sed -i '/CONFIG_FIRMWARE_INCLUDE_OPENSSL_EXE/d' .config
+
+        # 写入通用配置
+        echo "CONFIG_FIRMWARE_INCLUDE_OPENSSL_EXE=y" >> .config
+
+        # 写入内核特定配置
+        if [ "$KERNEL" = "4.4" ] ; then
+          echo "CONFIG_FIRMWARE_INCLUDE_MENTOHUST=n" >> .config
+          echo "CONFIG_FIRMWARE_INCLUDE_SCUTCLIENT=n" >> .config
+          echo "CONFIG_FIRMWARE_INCLUDE_SHADOWSOCKS=y" >> .config
+          echo "CONFIG_FIRMWARE_INCLUDE_SSOBFS=n" >> .config
+          echo "CONFIG_FIRMWARE_INCLUDE_ADBYBY=y" >> .config
+          echo "CONFIG_FIRMWARE_INCLUDE_DNSFORWARDER=n" >> .config
+          echo "CONFIG_FIRMWARE_INCLUDE_SRELAY=n" >> .config
+          echo "CONFIG_FIRMWARE_INCLUDE_XRAY=y" >> .config
+          echo "CONFIG_FIRMWARE_INCLUDE_V2RAY=y" >> .config
+          echo "CONFIG_FIRMWARE_INCLUDE_DDNSTO=y" >> .config
+          echo "CONFIG_FIRMWARE_INCLUDE_ALDRIVER=n" >> .config
+          echo "CONFIG_FIRMWARE_INCLUDE_ZEROTIER=n" >> .config
+          echo "CONFIG_FIRMWARE_INCLUDE_ALIDDNS=y" >> .config
+        else
+          echo "CONFIG_FIRMWARE_INCLUDE_MENTOHUST=n" >> .config
+          echo "CONFIG_FIRMWARE_INCLUDE_SCUTCLIENT=n" >> .config
+          echo "CONFIG_FIRMWARE_INCLUDE_SHADOWSOCKS=y" >> .config
+          echo "CONFIG_FIRMWARE_INCLUDE_SSOBFS=n" >> .config
+          echo "CONFIG_FIRMWARE_INCLUDE_SSSERVER=n" >> .config
+          echo "CONFIG_FIRMWARE_INCLUDE_DNSFORWARDER=n" >> .config
+          echo "CONFIG_FIRMWARE_INCLUDE_ADBYBY=y" >> .config
+          echo "CONFIG_FIRMWARE_INCLUDE_FRPC=n" >> .config
+          echo "CONFIG_FIRMWARE_INCLUDE_FRPS=n" >> .config
+          echo "CONFIG_FIRMWARE_INCLUDE_TUNSAFE=n" >> .config
+          echo "CONFIG_FIRMWARE_INCLUDE_ALIDDNS=y" >> .config
+          echo "CONFIG_FIRMWARE_INCLUDE_SMARTDNS=y" >> .config
+          echo "CONFIG_FIRMWARE_INCLUDE_SMARTDNSBIN=y" >> .config
+          echo "CONFIG_FIRMWARE_INCLUDE_V2RAY=n" >> .config
+          echo "CONFIG_FIRMWARE_INCLUDE_TROJAN=n" >> .config
+          echo "CONFIG_FIRMWARE_INCLUDE_KOOLPROXY=y" >> .config
+          echo "CONFIG_FIRMWARE_INCLUDE_CADDY=y" >> .config
+          echo "CONFIG_FIRMWARE_INCLUDE_CADDYBIN=n" >> .config
+          echo "CONFIG_FIRMWARE_INCLUDE_ADGUARDHOME=y" >> .config
+          echo "CONFIG_FIRMWARE_INCLUDE_SRELAY=n" >> .config
+          echo "CONFIG_FIRMWARE_INCLUDE_WYY=y" >> .config
+          echo "CONFIG_FIRMWARE_INCLUDE_WYYBIN=n" >> .config
+          echo "CONFIG_FIRMWARE_INCLUDE_ZEROTIER=n" >> .config
+        fi
+
         sudo ./clear_tree
         sudo ./build_firmware_modify $TNAME 0
         sudo mv -f images/*.trx /opt/images/
 
-    - name : Upload packages
+    - name: Upload packages
       uses: actions/upload-artifact@v4
       if: always()
       with:
         name: Padavan-packages
-        path: /opt/images
-
+        path: /opt/images/
