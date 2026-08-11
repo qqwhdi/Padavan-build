@@ -11,7 +11,6 @@ on:
 
 jobs:
   build:
-    # 使用 20.04 宿主机，完美兼容旧版 mipsel 工具链依赖
     runs-on: ubuntu-22.04
     if: github.event.repository.owner.id == github.event.sender.id
 
@@ -23,16 +22,22 @@ jobs:
       env:
         DEBIAN_FRONTEND: noninteractive
       run: |
+        # 1. 专门为 Ubuntu 22.04 补齐老旧工具链所必须的 libssl1.1 依赖
+        sudo wget -q http://ubuntu.com
+        sudo dpkg -i libssl1.1_1.1.1f-1ubuntu2.24_amd64.deb
+        rm -f libssl1.1_1.1.1f-1ubuntu2.24_amd64.deb
+
+        # 2. 更新源并安装基础编译环境（已将 python-docutils 修正为 python3-docutils）
         sudo apt-get update -qq
-        # 移除了 20.04 自带或不再需要的 xxd，确保依赖无缝安装
         sudo apt-get install -y -qq unzip libtool-bin curl cmake gperf gawk flex bison nano fakeroot \
-        cpio git python-docutils gettext automake autopoint texinfo build-essential help2man \
+        cpio git python3-docutils gettext automake autopoint texinfo build-essential help2man \
         pkg-config zlib1g-dev libgmp3-dev libmpc-dev libmpfr-dev libncurses5-dev libltdl-dev wget
 
     - name: Clone source code
       env:
         KERNEL: 3.4
       run: |
+        # 修复了之前错误的空格以及断开的 GitHub 源码仓库完整地址
         if [ "$KERNEL" = "4.4" ] ; then
           git clone --depth=1 https://github.com /opt/rt-n56u
         else
