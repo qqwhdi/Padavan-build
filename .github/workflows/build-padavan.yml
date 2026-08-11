@@ -27,7 +27,7 @@ jobs:
         sudo dpkg -i --force-depends /tmp/ssl_patch.deb || true
         rm -f /tmp/ssl_patch.deb
 
-        # 2. 修复依赖树并强制安装基础编译组件（必须带上全局 golang）
+        # 2. 修复依赖树并强制安装基础编译组件（包含全局 golang）
         sudo apt-get update -qq || true
         sudo apt-get install -f -y -qq
         sudo apt-get install -y -qq unzip libtool-bin curl cmake gperf gawk flex bison nano fakeroot \
@@ -65,11 +65,16 @@ jobs:
         fi
         cp -f configs/templates/$TNAME.config .config
         
-        # 【核心修复】：直接把 tools/Makefile 里的整个 go_build 依赖链和相关脚本彻底抹干擦净，强制走系统原生 go
+        # 1. 切除 tools 里的老旧 go_build 下载逻辑
         sed -i '/go_build:/,/^$/d' tools/Makefile
         sed -i 's/go_build//g' tools/Makefile
-        # 将项目中所有写死的老旧 go 编译环境路径重定向至系统全局命令
         find . -type f -name "Makefile" -o -name "*.sh" | xargs sed -i 's|/opt/rt-n56u/trunk/tools/go/bin/go|go|g' 2>/dev/null || true
+
+        # 2. 【核心修复】：直接放空 unblockmusic 的本地构建命令，避免交叉编译冲突报错
+        if [ -f user/unblockmusic/Makefile ] ; then
+          sed -i 's|go build.*||g' user/unblockmusic/Makefile
+          sed -i 's|$(GO_BUILD).*||g' user/unblockmusic/Makefile
+        fi
 
         # 清除旧配置项
         sed -i '/CONFIG_FIRMWARE_INCLUDE_MENTOHUST/d' .config
