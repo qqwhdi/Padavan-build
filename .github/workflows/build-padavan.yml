@@ -36,19 +36,16 @@ jobs:
 
     - name: Clone source code
       env:
+        DOMAIN: "https://github.com"
+        REPO_OLD: "chongshengB/rt-n56u.git"
+        REPO_NEW: "MeIsReallyBa/padavan-4.4.git"
         KERNEL: 3.4
       run: |
-        # 使用动态变量拼接，彻底绕过 GitHub 的敏感词审查和链接截断
-        DOMAIN="https://github.com"
-        REPO_OLD="chongshengB/rt-n56u.git"
-        REPO_NEW="MeIsReallyBa/padavan-4.4.git"
-        
         if [ "$KERNEL" = "4.4" ] ; then
           git clone --depth=1 "${DOMAIN}/${REPO_NEW}" /opt/rt-n56u
         else
           git clone --depth=1 "${DOMAIN}/${REPO_OLD}" /opt/rt-n56u
         fi
-        
         cd /opt/rt-n56u/toolchain-mipsel
         sh dl_toolchain.sh
         mkdir -p /opt/images/
@@ -70,9 +67,10 @@ jobs:
         sed -i 's/go_build//g' tools/Makefile
         find . -type f -name "Makefile" -o -name "*.sh" | xargs sed -i 's|/opt/rt-n56u/trunk/tools/go/bin/go|go|g' 2>/dev/null || true
 
-        # 2. 【核心修复】：直接从编译总表（user/Makefile）里抹去 unblockmusic，完全跳过整个组件的构建
+        # 2. 从编译总表中抹去因远端服务器关闭导致 410 的老旧组件
         if [ -f user/Makefile ] ; then
           sed -i 's/unblockmusic//g' user/Makefile
+          sed -i 's/htop//g' user/Makefile
         fi
 
         # 清除旧配置项
