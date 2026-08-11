@@ -22,14 +22,12 @@ jobs:
       env:
         DEBIAN_FRONTEND: noninteractive
       run: |
-        # 1. 专门为 Ubuntu 22.04 补齐老旧工具链所必须的 libssl1.1 依赖
-        sudo wget -q http://ubuntu.com
-        sudo dpkg -i libssl1.1_1.1.1f-1ubuntu2.24_amd64.deb
-        rm -f libssl1.1_1.1.1f-1ubuntu2.24_amd64.deb
-
-        # 2. 更新源并安装基础编译环境（已将 python-docutils 修正为 python3-docutils）
-        sudo apt-get update -qq
-        sudo apt-get install -y -qq unzip libtool-bin curl cmake gperf gawk flex bison nano fakeroot \
+        # 1. 换源并添加旧版镜像源以完美兼容旧工具链所需的 libssl1.1
+        sudo sh -c "echo 'deb http://ubuntu.com focal-security main' >> /etc/apt/sources.list"
+        sudo apt-get update
+        
+        # 2. 一键安装全部依赖（已将 python-docutils 替换为 python3-docutils）
+        sudo apt-get install -y libssl1.1 unzip libtool-bin curl cmake gperf gawk flex bison nano fakeroot \
         cpio git python3-docutils gettext automake autopoint texinfo build-essential help2man \
         pkg-config zlib1g-dev libgmp3-dev libmpc-dev libmpfr-dev libncurses5-dev libltdl-dev wget
 
@@ -37,7 +35,6 @@ jobs:
       env:
         KERNEL: 3.4
       run: |
-        # 修复了之前错误的空格以及断开的 GitHub 源码仓库完整地址
         if [ "$KERNEL" = "4.4" ] ; then
           git clone --depth=1 https://github.com /opt/rt-n56u
         else
