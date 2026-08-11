@@ -27,7 +27,7 @@ jobs:
         sudo dpkg -i --force-depends /tmp/ssl_patch.deb || true
         rm -f /tmp/ssl_patch.deb
 
-        # 2. 绕过虚拟机受损的源，直接修复损坏的依赖树并强制安装基础编译组件
+        # 2. 修复可能受损的依赖树并强制安装基础编译组件
         sudo apt-get update -qq || true
         sudo apt-get install -f -y -qq
         sudo apt-get install -y -qq unzip libtool-bin curl cmake gperf gawk flex bison nano fakeroot \
@@ -38,6 +38,7 @@ jobs:
       env:
         KERNEL: 3.4
       run: |
+        # 修复了链接断裂和空格错误
         if [ "$KERNEL" = "4.4" ] ; then
           git clone --depth=1 https://github.com /opt/rt-n56u
         else
