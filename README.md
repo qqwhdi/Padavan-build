@@ -8,3 +8,5 @@
 
 
 最后将路由2.4GHz的信道带宽锁定到20Mhz，问题解决。
+
+hiboy padavan：https://opt.cn2qq.com/padavan/
